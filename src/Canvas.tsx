@@ -5,45 +5,46 @@ interface Point {
   y: number;
 }
 
-class Line {
+interface Line {
   x1: number;
   y1: number;
   x2: number;
   y2: number;
-
-  constructor(x1: number, y1: number, x2: number, y2: number) {
-    this.x1 = x1;
-    this.y1 = y1;
-    this.x2 = x2;
-    this.y2 = y2;
-  }
-
-  draw(ctx: CanvasRenderingContext2D) {
-    ctx.beginPath();
-    ctx.moveTo(this.x1, this.y1);
-    ctx.lineCap = "round";
-    ctx.lineTo(this.x2, this.y2);
-    ctx.closePath();
-    ctx.stroke();
-  }
-
-  length() {
-    return Math.sqrt((this.x2 - this.x1) ** 2 + (this.y2 - this.y1) ** 2);
-  }
+}
+function createLine(x1: number, y1: number, x2: number, y2: number) {
+  return { x1, y1, x2, y2 };
+}
+function drawLine(line: Line, ctx: CanvasRenderingContext2D) {
+  ctx.beginPath();
+  ctx.moveTo(line.x1, line.y1);
+  ctx.lineCap = "round";
+  ctx.lineTo(line.x2, line.y2);
+  ctx.closePath();
+  ctx.stroke();
 }
 
-export default function Canvas() {
+interface CanvasProps {
+  width: number;
+  height: number;
+}
+
+export default function Canvas({
+  width = window.innerWidth,
+  height = window.innerHeight,
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const scale = window.devicePixelRatio;
+  const windowScale = window.devicePixelRatio;
   const [lines, setLines] = useState<Line[]>([]);
   const [newLine, setNewLine] = useState<Line | null>(null);
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
 
   function getMouseX(event: MouseEvent) {
-    return event.clientX / scale;
+    const offset = ctx?.canvas.getBoundingClientRect().left ?? 0;
+    return (event.clientX - offset) / windowScale;
   }
   function getMouseY(event: MouseEvent) {
-    return event.clientY / scale;
+    const offset = ctx?.canvas.getBoundingClientRect().top ?? 0;
+    return (event.clientY - offset) / windowScale;
   }
 
   function getContext() {
@@ -53,7 +54,7 @@ export default function Canvas() {
       return;
     }
     const newCtx = canvas.getContext("2d");
-    newCtx?.scale(scale, scale);
+    newCtx?.scale(windowScale, windowScale);
     setCtx(newCtx);
   }
 
@@ -69,10 +70,10 @@ export default function Canvas() {
     ctx.strokeStyle = "#000";
     ctx.lineWidth = 2;
     for (let line of lines) {
-      line.draw(ctx);
+      drawLine(line, ctx);
     }
     if (newLine) {
-      newLine.draw(ctx);
+      drawLine(newLine, ctx);
     }
     return;
   }
@@ -80,19 +81,19 @@ export default function Canvas() {
     console.log("mouse down");
     const x = getMouseX(event);
     const y = getMouseY(event);
-    setNewLine(new Line(x, y, x, y));
+    setNewLine(createLine(x, y, x, y));
   }
   function mouseMove(event: MouseEvent) {
     console.log("mouse move");
     if (newLine) {
       const x = getMouseX(event);
       const y = getMouseY(event);
-      setNewLine(new Line(newLine.x1, newLine.y1, x, y));
+      setNewLine(createLine(newLine.x1, newLine.y1, x, y));
     }
   }
   function mouseUp() {
     console.log(newLine);
-    if (newLine && newLine.length() > 15) {
+    if (newLine) {
       setLines([...lines, newLine]);
       console.log("lines", lines);
     }
@@ -107,8 +108,8 @@ export default function Canvas() {
     <canvas
       className="h-full w-full"
       ref={canvasRef}
-      height={window.innerHeight * scale}
-      width={window.innerWidth * scale}
+      height={height * windowScale}
+      width={width * windowScale}
       onMouseDown={mouseDown}
       onMouseMove={mouseMove}
       onMouseUp={mouseUp}
